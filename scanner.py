@@ -726,8 +726,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     text_lower = text.lower()
 
-    scan_triggers = ['סרוק','סריקה','תריץ','הרץ','scan','run','start','בצע','התחל','go']
-    analyze_triggers = ['נתח','תנתח','בדוק','תבדוק','analyze','analyse','ניתוח','בדיקה']
+scan_triggers    = ['סריקה שבועית','weekly scan','scan all','full scan']
+    analyze_triggers = ['נתח','תנתח','בדוק','תבדוק','analyze','analyse','ניתוח','בדיקה','סריקה על','תריץ על','הרץ על','בצע על']
 
     # זיהוי טיקר בהודעה
     words = text.upper().split()
