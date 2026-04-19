@@ -1,0 +1,10 @@
+anthropic
+yfinance
+python-telegram-bot
+pandas
+numpy
+matplotlib
+finvizfinance
+ta
+pytz
+apscheduler
