@@ -31,10 +31,10 @@ ISRAEL_TZ        = pytz.timezone('Asia/Jerusalem')
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PATTERN DETECTION ENGINE
+#  PATTERN DETECTION
 # ══════════════════════════════════════════════════════════════════════════════
 
-def get_pivots(series: pd.Series, bars: int = 6):
+def get_pivots(series, bars=6):
     pivots = pd.Series(index=series.index, dtype=float)
     n = len(series)
     for i in range(bars, n - bars):
@@ -44,10 +44,8 @@ def get_pivots(series: pd.Series, bars: int = 6):
             pivots.iloc[i] = val
     return pivots.dropna()
 
-
-def avg_bar_range(high: pd.Series, low: pd.Series) -> float:
+def avg_bar_range(high, low):
     return (high - low).mean()
-
 
 def detect_head_and_shoulders(df):
     highs = get_pivots(df['High'], bars=6)
@@ -61,14 +59,13 @@ def detect_head_and_shoulders(df):
         try:
             sub = pivot_vals.iloc[i:i+5]
             A, B, C, D, E = sub.values
-            if (C > max(A, E) and max(B, D) < min(A, E) and F < E and abs(B - D) < avg_bar):
+            if C > max(A,E) and max(B,D) < min(A,E) and F < E and abs(B-D) < avg_bar:
                 return {'pattern': 'Head and Shoulders', 'neckline': (B+D)/2,
                         'head': C, 'left_shoulder': A, 'right_shoulder': E,
-                        'support_levels': [round((B+D)/2, 2)], 'resistance_levels': [round(C, 2)]}
+                        'support_levels': [round((B+D)/2,2)], 'resistance_levels': [round(C,2)]}
         except:
             continue
     return None
-
 
 def detect_inverse_hns(df):
     lows  = get_pivots(df['Low'],  bars=6)
@@ -82,14 +79,13 @@ def detect_inverse_hns(df):
         try:
             sub = pivot_vals.iloc[i:i+5]
             A, B, C, D, E = sub.values
-            if (C < min(A, E) and min(B, D) > max(A, E) and F > E and abs(B - D) < avg_bar):
+            if C < min(A,E) and min(B,D) > max(A,E) and F > E and abs(B-D) < avg_bar:
                 return {'pattern': 'Inverse Head and Shoulders', 'neckline': (B+D)/2,
                         'head': C, 'left_shoulder': A, 'right_shoulder': E,
-                        'support_levels': [round(C, 2)], 'resistance_levels': [round((B+D)/2, 2)]}
+                        'support_levels': [round(C,2)], 'resistance_levels': [round((B+D)/2,2)]}
         except:
             continue
     return None
-
 
 def detect_triangle(df):
     highs = get_pivots(df['High'], bars=4)
@@ -106,15 +102,14 @@ def detect_triangle(df):
             B, D = lv[j], lv[j+1]
             if A > C > E and B < D and E > F > D:
                 return {'pattern': 'Symmetrical Triangle',
-                        'support_levels': [round(D, 2)], 'resistance_levels': [round(E, 2)]}
+                        'support_levels': [round(D,2)], 'resistance_levels': [round(E,2)]}
             if abs(A-C) <= avg_bar and abs(C-E) <= avg_bar and B < D < F < E:
                 return {'pattern': 'Ascending Triangle',
-                        'support_levels': [round(D, 2)], 'resistance_levels': [round(A, 2)]}
+                        'support_levels': [round(D,2)], 'resistance_levels': [round(A,2)]}
             if abs(B-D) <= avg_bar and A > C > E > F > D:
                 return {'pattern': 'Descending Triangle',
-                        'support_levels': [round(B, 2)], 'resistance_levels': [round(C, 2)]}
+                        'support_levels': [round(B,2)], 'resistance_levels': [round(C,2)]}
     return None
-
 
 def detect_double_top(df):
     highs = get_pivots(df['High'], bars=5)
@@ -128,21 +123,20 @@ def detect_double_top(df):
     lv = lows.values
     for i in range(len(hv) - 1):
         A, C = hv[i], hv[i+1]
-        if abs(A - C) > avg_bar:
+        if abs(A-C) > avg_bar:
             continue
         vol_A = df.loc[hi[i],   'Volume'] if hi[i]   in df.index else 0
         vol_C = df.loc[hi[i+1], 'Volume'] if hi[i+1] in df.index else 0
         if vol_C >= vol_A:
             continue
-        B_candidates = [v for v in lv if v < min(A, C)]
+        B_candidates = [v for v in lv if v < min(A,C)]
         if not B_candidates:
             continue
         B = max(B_candidates)
         if B < D < C:
             return {'pattern': 'Double Top',
-                    'support_levels': [round(B, 2)], 'resistance_levels': [round(A, 2)]}
+                    'support_levels': [round(B,2)], 'resistance_levels': [round(A,2)]}
     return None
-
 
 def detect_double_bottom(df):
     lows  = get_pivots(df['Low'],  bars=5)
@@ -155,17 +149,16 @@ def detect_double_bottom(df):
     hv = highs.values
     for i in range(len(lv) - 1):
         A, C = lv[i], lv[i+1]
-        if abs(A - C) > avg_bar:
+        if abs(A-C) > avg_bar:
             continue
-        B_candidates = [v for v in hv if v > max(A, C)]
+        B_candidates = [v for v in hv if v > max(A,C)]
         if not B_candidates:
             continue
         B = min(B_candidates)
         if C < D < B:
             return {'pattern': 'Double Bottom',
-                    'support_levels': [round(A, 2)], 'resistance_levels': [round(B, 2)]}
+                    'support_levels': [round(A,2)], 'resistance_levels': [round(B,2)]}
     return None
-
 
 def detect_triple_top(df):
     highs = get_pivots(df['High'], bars=5)
@@ -176,9 +169,8 @@ def detect_triple_top(df):
     for i in range(len(hv) - 2):
         A, B, C = hv[i], hv[i+1], hv[i+2]
         if abs(A-B) <= avg_bar and abs(B-C) <= avg_bar:
-            return {'pattern': 'Triple Top', 'resistance_levels': [round(A, 2)]}
+            return {'pattern': 'Triple Top', 'resistance_levels': [round(A,2)]}
     return None
-
 
 def detect_triple_bottom(df):
     lows = get_pivots(df['Low'], bars=5)
@@ -189,9 +181,8 @@ def detect_triple_bottom(df):
     for i in range(len(lv) - 2):
         A, B, C = lv[i], lv[i+1], lv[i+2]
         if abs(A-B) <= avg_bar and abs(B-C) <= avg_bar:
-            return {'pattern': 'Triple Bottom', 'support_levels': [round(A, 2)]}
+            return {'pattern': 'Triple Bottom', 'support_levels': [round(A,2)]}
     return None
-
 
 def detect_cup_and_handle(df, min_days=126):
     if len(df) < min_days:
@@ -236,19 +227,17 @@ def detect_cup_and_handle(df, min_days=126):
         if D > C:
             continue
         cup_vol = vol.iloc[start + A_pos: start + A_pos + B_pos].mean()
-        avg_vol = vol.mean()
-        if cup_vol >= avg_vol:
+        if cup_vol >= vol.mean():
             continue
         return {
             'pattern': 'Cup and Handle',
-            'cup_start_price': round(K, 2), 'cup_high': round(A, 2),
-            'cup_low': round(B, 2), 'cup_right': round(C, 2), 'handle_low': round(D, 2),
-            'support_levels': [round(B, 2), round(D, 2)],
-            'resistance_levels': [round(A, 2)],
+            'cup_start_price': round(K,2), 'cup_high': round(A,2),
+            'cup_low': round(B,2), 'cup_right': round(C,2), 'handle_low': round(D,2),
+            'support_levels': [round(B,2), round(D,2)],
+            'resistance_levels': [round(A,2)],
             'cup_start_idx': start, 'cup_end_idx': start + A_pos + B_pos + C_pos,
         }
     return None
-
 
 def run_pattern_scan(df, min_cup_days=126):
     detectors = [
@@ -275,13 +264,11 @@ def create_multi_timeframe_chart(symbol, daily, weekly, monthly, pattern_result)
         fig.patch.set_facecolor('#0d1117')
         fig.suptitle(f'{symbol} — Multi-Timeframe Analysis  |  {datetime.now().strftime("%Y-%m-%d")}',
                      color='white', fontsize=14, fontweight='bold', y=0.98)
-
         timeframes = [
             (daily.tail(180),  'Daily (6 months)',  axes[0]),
             (weekly.tail(104), 'Weekly (2 years)',  axes[1]),
             (monthly.tail(60), 'Monthly (5 years)', axes[2]),
         ]
-
         for df_tf, label, ax in timeframes:
             ax.set_facecolor('#0d1117')
             n  = len(df_tf)
@@ -290,49 +277,40 @@ def create_multi_timeframe_chart(symbol, daily, weekly, monthly, pattern_result)
             ma20  = pd.Series(close).rolling(20).mean().values
             ma50  = pd.Series(close).rolling(50).mean().values
             ma200 = pd.Series(close).rolling(200).mean().values
-
             ax.plot(xs, close, color='#58a6ff', lw=1.6, label='Price', zorder=3)
             ax.plot(xs, ma20,  color='#ffd700', lw=0.9, label='MA20',  alpha=.85)
             ax.plot(xs, ma50,  color='#ff9500', lw=0.9, label='MA50',  alpha=.85)
             valid_ma200 = ma200[~np.isnan(ma200)]
             if len(valid_ma200):
-                ax.plot(xs[-len(valid_ma200):], valid_ma200,
-                        color='#ff4757', lw=1.3, label='MA200', alpha=.9)
-
+                ax.plot(xs[-len(valid_ma200):], valid_ma200, color='#ff4757', lw=1.3, label='MA200', alpha=.9)
             for lvl in pattern_result.get('support_levels', []):
                 ax.axhline(lvl, color='#2ed573', lw=1.2, ls='--', alpha=.8)
                 ax.text(n*0.01, lvl, f' S ${lvl}', color='#2ed573', fontsize=7, va='bottom')
             for lvl in pattern_result.get('resistance_levels', []):
                 ax.axhline(lvl, color='#ff4757', lw=1.2, ls='--', alpha=.8)
                 ax.text(n*0.01, lvl, f' R ${lvl}', color='#ff4757', fontsize=7, va='top')
-
             nk = pattern_result.get('neckline')
             if nk:
                 ax.axhline(nk, color='#ff9500', lw=1.8, ls='-', alpha=.9)
                 ax.text(n*0.5, nk, f' Neckline ${nk:.2f}', color='#ff9500', fontsize=8, fontweight='bold')
-
             if 'cup_start_idx' in pattern_result and label.startswith('Daily'):
                 cs = pattern_result['cup_start_idx']
                 ce = min(pattern_result['cup_end_idx'], n-1)
                 if ce > cs:
                     ax.fill_between(xs[cs:ce], close[cs:ce], max(close[cs:ce]), alpha=.08, color='#58a6ff')
-
             pat = pattern_result.get('pattern', 'None')
             if pat and pat != 'None':
-                ax.text(0.5, 0.97, f'Pattern: {pat}',
-                        transform=ax.transAxes, color='white', fontsize=9,
-                        fontweight='bold', ha='center', va='top',
+                ax.text(0.5, 0.97, f'Pattern: {pat}', transform=ax.transAxes,
+                        color='white', fontsize=9, fontweight='bold', ha='center', va='top',
                         bbox=dict(boxstyle='round,pad=0.25', facecolor='#21262d', alpha=.85))
-
             ax.set_title(label, color='#8b949e', fontsize=10, pad=4)
             ax.legend(loc='upper left', facecolor='#161b22', labelcolor='white', fontsize=7, framealpha=.8)
             ax.tick_params(colors='#8b949e', labelsize=7)
             ax.grid(color='#21262d', ls='--', lw=.4)
             for spine in ax.spines.values():
                 spine.set_color('#30363d')
-
         plt.tight_layout(rect=[0, 0, 1, 0.97])
-        path = f'/tmp/{symbol}_chart.png' if not os.name == 'nt' else f'C:\\stock_scanner\\{symbol}_chart.png'
+        path = f'/tmp/{symbol}_chart.png' if os.name != 'nt' else f'C:\\stock_scanner\\{symbol}_chart.png'
         plt.savefig(path, dpi=130, bbox_inches='tight', facecolor='#0d1117')
         plt.close()
         return path
@@ -351,7 +329,6 @@ def calc_indicators(hist):
         high  = hist['High']
         low   = hist['Low']
         vol   = hist['Volume']
-
         rsi    = ta_lib.momentum.RSIIndicator(close, window=14).rsi().iloc[-1]
         macd_i = ta_lib.trend.MACD(close)
         macd   = macd_i.macd().iloc[-1]
@@ -365,16 +342,15 @@ def calc_indicators(hist):
         stoch  = ta_lib.momentum.StochasticOscillator(high, low, close).stoch().iloc[-1]
         vol_ma = vol.rolling(20).mean().iloc[-1]
         vol_ratio = vol.iloc[-1] / vol_ma if vol_ma > 0 else 1.0
-
-        return f"""
-Technical Indicators:
-- RSI(14): {rsi:.1f} {'[Overbought]' if rsi > 70 else '[Oversold]' if rsi < 30 else '[Neutral]'}
-- MACD: {macd:.3f} | Signal: {macd_s:.3f} | Histogram: {macd_h:.3f} {'[Bullish]' if macd_h > 0 else '[Bearish]'}
-- Bollinger: Upper={bb_up:.2f} | Mid={bb_mid:.2f} | Lower={bb_lo:.2f}
-- ADX: {adx:.1f} {'[Strong trend]' if adx > 25 else '[Weak trend]'}
-- Stochastic: {stoch:.1f} {'[Overbought]' if stoch > 80 else '[Oversold]' if stoch < 20 else '[Neutral]'}
-- Volume ratio vs MA20: {vol_ratio:.2f}x {'[High volume]' if vol_ratio > 1.5 else ''}
-"""
+        return (
+            f"Technical Indicators:\n"
+            f"- RSI(14): {rsi:.1f} {'[Overbought]' if rsi>70 else '[Oversold]' if rsi<30 else '[Neutral]'}\n"
+            f"- MACD: {macd:.3f} | Signal: {macd_s:.3f} | Hist: {macd_h:.3f} {'[Bullish]' if macd_h>0 else '[Bearish]'}\n"
+            f"- Bollinger: U={bb_up:.2f} M={bb_mid:.2f} L={bb_lo:.2f}\n"
+            f"- ADX: {adx:.1f} {'[Strong]' if adx>25 else '[Weak]'}\n"
+            f"- Stoch: {stoch:.1f} {'[Overbought]' if stoch>80 else '[Oversold]' if stoch<20 else '[Neutral]'}\n"
+            f"- Vol ratio: {vol_ratio:.2f}x {'[High]' if vol_ratio>1.5 else ''}"
+        )
     except Exception as e:
         return f"(Indicators unavailable: {e})"
 
@@ -384,15 +360,10 @@ Technical Indicators:
 # ══════════════════════════════════════════════════════════════════════════════
 def confirm_with_claude(symbol, chart_path, algo_result, stock, hist):
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-
     indicators_text = calc_indicators(hist)
-
     with open(chart_path, 'rb') as f:
         img_b64 = base64.standard_b64encode(f.read()).decode()
-
     algo_pattern = algo_result.get('pattern', 'None')
-    n = len(hist.tail(390))
-
     prompt = f"""You are a senior technical analyst reviewing a multi-timeframe chart for {symbol}.
 
 Algorithmic scanner detected: **{algo_pattern}**
@@ -444,7 +415,6 @@ Only set watchlist=true if pattern is CLEAR with high or medium confidence AND a
             ]
         }]
     )
-
     try:
         raw = msg.content[0].text.strip()
         if raw.startswith('```'):
@@ -473,10 +443,8 @@ def get_stocks_from_finviz():
         df = foverview.screener_view()
         if df is None or len(df) == 0:
             return [], []
-
         all_tickers = [str(r.get('Ticker','')) for _,r in df.iterrows() if r.get('Ticker','')]
         print(f"Finviz returned {len(all_tickers)} candidates")
-
         stocks = []
         for _, row in df.iterrows():
             try:
@@ -491,9 +459,9 @@ def get_stocks_from_finviz():
                 if not all([px, mc, beta, pb]): continue
                 vol_usd = av * px
                 if not (200e6 <= mc <= 400e6): continue
-                if vol_usd < 200_000:          continue
-                if not (1.5 <= beta <= 2.0):   continue
-                if pb < 1.0:                   continue
+                if vol_usd < 200_000: continue
+                if not (1.5 <= beta <= 2.0): continue
+                if pb < 1.0: continue
                 stocks.append({
                     'symbol': sym, 'market_cap': mc, 'volume_usd': vol_usd,
                     'beta': beta, 'pb_ratio': pb, 'price': px,
@@ -559,78 +527,55 @@ async def analyze_single_stock(symbol, update):
     sym = symbol.upper().strip()
     try:
         await update.message.reply_text(f"⏳ מושך נתונים עבור *{sym}*...", parse_mode='Markdown')
-
         ticker = yf.Ticker(sym)
         info   = ticker.info
         px     = info.get('currentPrice', info.get('regularMarketPrice', 0))
-
         if not px:
             await update.message.reply_text(f"❌ לא נמצאו נתונים עבור {sym}. בדוק שהטיקר נכון.")
             return
-
         daily   = ticker.history(period="2y",  interval="1d")
         weekly  = ticker.history(period="5y",  interval="1wk")
         monthly = ticker.history(period="10y", interval="1mo")
-
         if daily is None or len(daily) < 30:
             await update.message.reply_text(f"❌ אין מספיק נתונים היסטוריים עבור {sym}.")
             return
-
         stock = {
-            'symbol':     sym,
-            'market_cap': info.get('marketCap', 0),
+            'symbol': sym, 'market_cap': info.get('marketCap', 0),
             'volume_usd': info.get('averageVolume', 0) * px,
-            'beta':       info.get('beta', 0) or 0,
-            'pb_ratio':   info.get('priceToBook', 0) or 0,
-            'price':      px,
-            'sector':     info.get('sector', 'N/A'),
-            'pe_ratio':   info.get('trailingPE', 'N/A'),
-            'eps_ttm':    info.get('trailingEps', 'N/A'),
-            'name':       info.get('longName', sym),
+            'beta': info.get('beta', 0) or 0, 'pb_ratio': info.get('priceToBook', 0) or 0,
+            'price': px, 'sector': info.get('sector', 'N/A'),
+            'pe_ratio': info.get('trailingPE', 'N/A'), 'eps_ttm': info.get('trailingEps', 'N/A'),
+            'name': info.get('longName', sym),
         }
-
         await update.message.reply_text(f"🔎 מריץ ניתוח אלגוריתמי על *{sym}*...", parse_mode='Markdown')
-
         algo_daily   = run_pattern_scan(daily,            min_cup_days=126)
         algo_weekly  = run_pattern_scan(weekly,           min_cup_days=26)
         algo_monthly = run_pattern_scan(monthly.tail(60), min_cup_days=6)
-
         priority = ['Cup and Handle','Inverse Head and Shoulders','Double Bottom','Triple Bottom',
                     'Head and Shoulders','Double Top','Triple Top','Ascending Triangle',
                     'Descending Triangle','Symmetrical Triangle','None']
-
         best = {'pattern': 'None'}
         for res in [algo_daily, algo_weekly, algo_monthly]:
             if priority.index(res.get('pattern','None')) < priority.index(best.get('pattern','None')):
                 best = res
-
         algo_tf = "יומי" if best == algo_daily else "שבועי" if best == algo_weekly else "חודשי"
         await update.message.reply_text(
             f"📐 תבנית אלגוריתמית: *{best['pattern']}* (גרף {algo_tf})", parse_mode='Markdown')
-
         await update.message.reply_text(f"🎨 בונה גרף 3 טיימפריימים...")
         chart_path = create_multi_timeframe_chart(sym, daily, weekly, monthly, best)
-
         if not chart_path:
             await update.message.reply_text("❌ שגיאה ביצירת הגרף.")
             return
-
         await update.message.reply_text(f"🤖 שולח ל-Claude לניתוח ויזואלי...")
         result = confirm_with_claude(sym, chart_path, best, stock, daily)
-
         if result is None:
             await update.message.reply_text("❌ שגיאה בניתוח Claude.")
             return
-
         await tg_photo(chart_path,
                        caption=f"{sym} — {result.get('pattern','')} ({result.get('pattern_confidence','')})")
-
-        report = fmt_report(stock, result)
-        await tg_send(report)
-
+        await tg_send(fmt_report(stock, result))
         if os.path.exists(chart_path):
             os.remove(chart_path)
-
     except Exception as e:
         await update.message.reply_text(f"❌ שגיאה בניתוח {sym}: {str(e)}")
 
@@ -641,28 +586,23 @@ async def analyze_single_stock(symbol, update):
 async def run_scan():
     await tg_send("🔍 *Weekly scan started…*")
     all_tickers, stocks = get_stocks_from_finviz()
-
     if not all_tickers:
         await tg_send("⚠️ No stocks found by Finviz.")
         return
-
     chunks = [all_tickers[i:i+50] for i in range(0, len(all_tickers), 50)]
     first = True
     for chunk in chunks:
         header = f"📋 *Finviz found {len(all_tickers)} candidates:*\n\n" if first else ""
         first = False
         await tg_send(header + "  ".join([f"`{t}`" for t in chunk]))
-
     if not stocks:
         await tg_send("⚠️ No stocks passed precise fundamental filter.")
         return
-
     await tg_send(
         f"✅ *{len(stocks)} stocks passed precise filter:*\n\n"
         + "  ".join([f"`{s['symbol']}`" for s in stocks])
         + "\n\n_Running 3-timeframe technical analysis…_"
     )
-
     watchlist = []
     for stock in stocks:
         sym = stock['symbol']
@@ -672,44 +612,33 @@ async def run_scan():
             daily   = ticker.history(period="2y",  interval="1d")
             weekly  = ticker.history(period="5y",  interval="1wk")
             monthly = ticker.history(period="10y", interval="1mo")
-
             if daily is None or len(daily) < 60:
                 continue
-
             algo_daily   = run_pattern_scan(daily,            min_cup_days=126)
             algo_weekly  = run_pattern_scan(weekly,           min_cup_days=26)
             algo_monthly = run_pattern_scan(monthly.tail(60), min_cup_days=6)
-
             priority = ['Cup and Handle','Inverse Head and Shoulders','Double Bottom','Triple Bottom',
                         'Head and Shoulders','Double Top','Triple Top','Ascending Triangle',
                         'Descending Triangle','Symmetrical Triangle','None']
-
             best = {'pattern': 'None'}
             for res in [algo_daily, algo_weekly, algo_monthly]:
                 if priority.index(res.get('pattern','None')) < priority.index(best.get('pattern','None')):
                     best = res
-
             print(f"  Algo: {best['pattern']}")
-
             chart_path = create_multi_timeframe_chart(sym, daily, weekly, monthly, best)
             if not chart_path:
                 continue
-
             result = confirm_with_claude(sym, chart_path, best, stock, daily)
             rec = result.get('watchlist', False)
             print(f"  Claude: {'YES' if rec else 'NO'} | {result.get('pattern')}")
-
             if rec:
                 watchlist.append(sym)
                 await tg_send(fmt_report(stock, result))
                 await tg_photo(chart_path, caption=f"{sym} — {result.get('pattern','')} ({result.get('pattern_confidence','')})")
-
             if os.path.exists(chart_path):
                 os.remove(chart_path)
-
         except Exception as e:
             print(f"  Error {sym}: {e}")
-
     await tg_send(
         f"\n✅ *Scan complete!*\nWatchlist: *{len(watchlist)} stocks*\n"
         + (', '.join(f"`{s}`" for s in watchlist) if watchlist else '_No clear setups_')
@@ -726,32 +655,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     text_lower = text.lower()
 
-scan_triggers    = ['סריקה שבועית','weekly scan','scan all','full scan']
-    analyze_triggers = ['נתח','תנתח','בדוק','תבדוק','analyze','analyse','ניתוח','בדיקה','סריקה על','תריץ על','הרץ על','בצע על']
+    # מילות סריקה שבועית — רק ביטויים מפורשים
+    weekly_triggers = ['סריקה שבועית', 'weekly scan', 'scan all', 'full scan', '/scan']
+
+    # מילים שאינן טיקרים
+    skip_words = {
+        'על', 'את', 'של', 'עם', 'לי', 'RUN', 'ON', 'THE', 'FOR', 'ME',
+        'תריץ', 'תנתח', 'בדוק', 'נתח', 'ANALYZE', 'CHECK', 'TEST',
+        'הרץ', 'תהרץ', 'בצע', 'תבצע', 'תסרוק', 'סרוק'
+    }
 
     # זיהוי טיקר בהודעה
     words = text.upper().split()
     ticker = None
-    skip_words = {'על', 'את', 'של', 'עם', 'לי', 'RUN', 'SCAN', 'ON', 'THE', 'FOR',
-                  'תריץ', 'תנתח', 'בדוק', 'נתח', 'ANALYZE', 'CHECK', 'בדיקה', 'ניתוח'}
     for word in words:
         clean = word.strip('.,!?')
         if 1 < len(clean) <= 5 and clean.isalpha() and clean not in skip_words:
             ticker = clean
             break
 
-    # אם יש טיקר וגם מילת ניתוח
-    if ticker and any(t in text_lower for t in analyze_triggers + scan_triggers):
+    # אם יש טיקר — נתח אותו תמיד
+    if ticker:
         await update.message.reply_text(f"🔍 מנתח את *{ticker}*...", parse_mode='Markdown')
         await analyze_single_stock(ticker, update)
 
-    # רק טיקר בלי הוראה
-    elif ticker and len(text.split()) <= 2:
-        await update.message.reply_text(f"🔍 מנתח את *{ticker}*...", parse_mode='Markdown')
-        await analyze_single_stock(ticker, update)
-
-    # סריקה שבועית
-    elif any(t in text_lower for t in scan_triggers) and not ticker:
+    # סריקה שבועית — רק ביטוי מפורש
+    elif any(t in text_lower for t in weekly_triggers):
         await update.message.reply_text("🚀 מתחיל סריקה שבועית...")
         await run_scan()
 
@@ -760,12 +689,12 @@ scan_triggers    = ['סריקה שבועית','weekly scan','scan all','full sca
         await update.message.reply_text(
             "👋 *שלום! הנה מה שאני יכול לעשות:*\n\n"
             "📊 *ניתוח מנייה ספציפית:*\n"
-            "• `AAPL`\n"
+            "• `SOFI`\n"
             "• `תנתח TSLA`\n"
             "• `תריץ בדיקה על NVDA`\n"
             "• `/analyze MSFT`\n\n"
             "🔍 *סריקה שבועית מלאה:*\n"
-            "• `תריץ סריקה`\n"
+            "• `סריקה שבועית`\n"
             "• `/scan`\n\n"
             "⏰ סריקה אוטומטית: כל שבת 21:00",
             parse_mode='Markdown'
@@ -790,8 +719,8 @@ async def cmd_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 *Stock Scanner Bot*\n\n"
-        "📊 לניתוח מנייה: `AAPL` או `תנתח TSLA`\n"
-        "🔍 לסריקה שבועית: `תריץ סריקה` או `/scan`\n"
+        "📊 לניתוח מנייה: `SOFI` או `תנתח TSLA`\n"
+        "🔍 לסריקה שבועית: `סריקה שבועית` או `/scan`\n"
         "⏰ סריקה אוטומטית: כל שבת 21:00",
         parse_mode='Markdown'
     )
