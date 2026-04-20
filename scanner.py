@@ -47,144 +47,9 @@ def get_pivots(series, bars=6):
 def avg_bar_range(high, low):
     return (high - low).mean()
 
-def detect_head_and_shoulders(df):
-    highs = get_pivots(df['High'], bars=6)
-    lows  = get_pivots(df['Low'],  bars=6)
-    if len(highs) < 3 or len(lows) < 2:
-        return None
-    avg_bar = avg_bar_range(df['High'], df['Low'])
-    F = df['Close'].iloc[-1]
-    pivot_vals = pd.concat([highs, lows]).sort_index()
-    for i in range(len(pivot_vals) - 4):
-        try:
-            sub = pivot_vals.iloc[i:i+5]
-            A, B, C, D, E = sub.values
-            if C > max(A,E) and max(B,D) < min(A,E) and F < E and abs(B-D) < avg_bar:
-                return {'pattern': 'Head and Shoulders', 'neckline': (B+D)/2,
-                        'head': C, 'left_shoulder': A, 'right_shoulder': E,
-                        'support_levels': [round((B+D)/2,2)], 'resistance_levels': [round(C,2)]}
-        except:
-            continue
-    return None
-
-def detect_inverse_hns(df):
-    lows  = get_pivots(df['Low'],  bars=6)
-    highs = get_pivots(df['High'], bars=6)
-    if len(lows) < 3 or len(highs) < 2:
-        return None
-    avg_bar = avg_bar_range(df['High'], df['Low'])
-    F = df['Close'].iloc[-1]
-    pivot_vals = pd.concat([highs, lows]).sort_index()
-    for i in range(len(pivot_vals) - 4):
-        try:
-            sub = pivot_vals.iloc[i:i+5]
-            A, B, C, D, E = sub.values
-            if C < min(A,E) and min(B,D) > max(A,E) and F > E and abs(B-D) < avg_bar:
-                return {'pattern': 'Inverse Head and Shoulders', 'neckline': (B+D)/2,
-                        'head': C, 'left_shoulder': A, 'right_shoulder': E,
-                        'support_levels': [round(C,2)], 'resistance_levels': [round((B+D)/2,2)]}
-        except:
-            continue
-    return None
-
-def detect_triangle(df):
-    highs = get_pivots(df['High'], bars=4)
-    lows  = get_pivots(df['Low'],  bars=4)
-    if len(highs) < 3 or len(lows) < 2:
-        return None
-    avg_bar = avg_bar_range(df['High'], df['Low'])
-    F = df['Close'].iloc[-1]
-    hv = highs.values
-    lv = lows.values
-    for i in range(len(hv) - 2):
-        A, C, E = hv[i], hv[i+1], hv[i+2]
-        for j in range(len(lv) - 1):
-            B, D = lv[j], lv[j+1]
-            if A > C > E and B < D and E > F > D:
-                return {'pattern': 'Symmetrical Triangle',
-                        'support_levels': [round(D,2)], 'resistance_levels': [round(E,2)]}
-            if abs(A-C) <= avg_bar and abs(C-E) <= avg_bar and B < D < F < E:
-                return {'pattern': 'Ascending Triangle',
-                        'support_levels': [round(D,2)], 'resistance_levels': [round(A,2)]}
-            if abs(B-D) <= avg_bar and A > C > E > F > D:
-                return {'pattern': 'Descending Triangle',
-                        'support_levels': [round(B,2)], 'resistance_levels': [round(C,2)]}
-    return None
-
-def detect_double_top(df):
-    highs = get_pivots(df['High'], bars=5)
-    lows  = get_pivots(df['Low'],  bars=5)
-    if len(highs) < 2 or len(lows) < 1:
-        return None
-    avg_bar = avg_bar_range(df['High'], df['Low'])
-    D = df['Close'].iloc[-1]
-    hv = highs.values
-    hi = highs.index
-    lv = lows.values
-    for i in range(len(hv) - 1):
-        A, C = hv[i], hv[i+1]
-        if abs(A-C) > avg_bar:
-            continue
-        vol_A = df.loc[hi[i],   'Volume'] if hi[i]   in df.index else 0
-        vol_C = df.loc[hi[i+1], 'Volume'] if hi[i+1] in df.index else 0
-        if vol_C >= vol_A:
-            continue
-        B_candidates = [v for v in lv if v < min(A,C)]
-        if not B_candidates:
-            continue
-        B = max(B_candidates)
-        if B < D < C:
-            return {'pattern': 'Double Top',
-                    'support_levels': [round(B,2)], 'resistance_levels': [round(A,2)]}
-    return None
-
-def detect_double_bottom(df):
-    lows  = get_pivots(df['Low'],  bars=5)
-    highs = get_pivots(df['High'], bars=5)
-    if len(lows) < 2 or len(highs) < 1:
-        return None
-    avg_bar = avg_bar_range(df['High'], df['Low'])
-    D = df['Close'].iloc[-1]
-    lv = lows.values
-    hv = highs.values
-    for i in range(len(lv) - 1):
-        A, C = lv[i], lv[i+1]
-        if abs(A-C) > avg_bar:
-            continue
-        B_candidates = [v for v in hv if v > max(A,C)]
-        if not B_candidates:
-            continue
-        B = min(B_candidates)
-        if C < D < B:
-            return {'pattern': 'Double Bottom',
-                    'support_levels': [round(A,2)], 'resistance_levels': [round(B,2)]}
-    return None
-
-def detect_triple_top(df):
-    highs = get_pivots(df['High'], bars=5)
-    if len(highs) < 3:
-        return None
-    avg_bar = avg_bar_range(df['High'], df['Low'])
-    hv = highs.values
-    for i in range(len(hv) - 2):
-        A, B, C = hv[i], hv[i+1], hv[i+2]
-        if abs(A-B) <= avg_bar and abs(B-C) <= avg_bar:
-            return {'pattern': 'Triple Top', 'resistance_levels': [round(A,2)]}
-    return None
-
-def detect_triple_bottom(df):
-    lows = get_pivots(df['Low'], bars=5)
-    if len(lows) < 3:
-        return None
-    avg_bar = avg_bar_range(df['High'], df['Low'])
-    lv = lows.values
-    for i in range(len(lv) - 2):
-        A, B, C = lv[i], lv[i+1], lv[i+2]
-        if abs(A-B) <= avg_bar and abs(B-C) <= avg_bar:
-            return {'pattern': 'Triple Bottom', 'support_levels': [round(A,2)]}
-    return None
-
+# ── Cup and Handle ─────────────────────────────────────────────────────────────
 def detect_cup_and_handle(df, min_days=126):
+    """Cup depth 30-50%, right rim ≥75% of left, handle 5-15% pullback in upper third."""
     if len(df) < min_days:
         return None
     close = df['Close']
@@ -194,9 +59,9 @@ def detect_cup_and_handle(df, min_days=126):
         seg = close.iloc[start: start + min_days]
         if len(seg) < 50:
             continue
-        K = seg.iloc[0]
+        K     = seg.iloc[0]
         A_idx = seg.idxmax()
-        A = seg[A_idx]
+        A     = seg[A_idx]
         A_pos = seg.index.get_loc(A_idx)
         if A_pos < 20:
             continue
@@ -204,39 +69,343 @@ def detect_cup_and_handle(df, min_days=126):
         if len(after_A) < 10:
             continue
         B_idx = after_A.idxmin()
-        B = after_A[B_idx]
+        B     = after_A[B_idx]
         B_pos = after_A.index.get_loc(B_idx)
-        if not (0.65 * A <= B <= 0.85 * A):
+        # Cup depth: 30-50% correction (bottom is 50-70% of left high)
+        if not (0.50 * A <= B <= 0.70 * A):
             continue
-        if not (20 <= A_pos <= 60):
+        if not (20 <= A_pos <= 80):
             continue
         after_B = after_A.iloc[B_pos:]
-        if len(after_B) < 3:
+        if len(after_B) < 5:
             continue
         C_idx = after_B.idxmax()
-        C = after_B[C_idx]
+        C     = after_B[C_idx]
         C_pos = after_B.index.get_loc(C_idx)
-        if not (0.60 * A <= C <= A):
+        # Right rim must reach ≥75% of left high (U-shape, not V)
+        if not (0.75 * A <= C <= 1.02 * A):
             continue
-        if not (3 <= C_pos <= 30):
+        if not (5 <= C_pos <= 40):
             continue
         after_C = after_B.iloc[C_pos:]
         if len(after_C) < 3:
             continue
-        D = after_C.iloc[-1]
-        if D > C:
+        D = after_C.min()  # handle low
+        handle_drop = (C - D) / C
+        # Handle: 5-15% pullback from right rim
+        if not (0.05 <= handle_drop <= 0.15):
             continue
+        # Handle stays in upper third of cup
+        upper_third_floor = B + (A - B) * (2 / 3)
+        if D < upper_third_floor:
+            continue
+        # Volume dries up in cup bottom
         cup_vol = vol.iloc[start + A_pos: start + A_pos + B_pos].mean()
         if cup_vol >= vol.mean():
             continue
         return {
-            'pattern': 'Cup and Handle',
-            'cup_start_price': round(K,2), 'cup_high': round(A,2),
-            'cup_low': round(B,2), 'cup_right': round(C,2), 'handle_low': round(D,2),
-            'support_levels': [round(B,2), round(D,2)],
-            'resistance_levels': [round(A,2)],
-            'cup_start_idx': start, 'cup_end_idx': start + A_pos + B_pos + C_pos,
+            'pattern':        'Cup and Handle',
+            'cup_start_price': round(K, 2),
+            'cup_high':        round(A, 2),
+            'cup_low':         round(B, 2),
+            'cup_right':       round(C, 2),
+            'handle_low':      round(D, 2),
+            'breakout_level':  round(C, 2),
+            'support_levels':  [round(B, 2), round(D, 2)],
+            'resistance_levels': [round(A, 2)],
+            'cup_start_idx':   start,
+            'cup_bottom_idx':  start + A_pos + B_pos,
+            'cup_end_idx':     start + A_pos + B_pos + C_pos,
         }
+    return None
+
+# ── Head and Shoulders ─────────────────────────────────────────────────────────
+def detect_head_and_shoulders(df, min_bars=63):
+    """LS/RS within 15%, neckline slope ≤10%, volume RS < LS, price must be near/below neckline."""
+    if len(df) < min_bars:
+        return None
+    highs = get_pivots(df['High'], bars=6)
+    lows  = get_pivots(df['Low'],  bars=6)
+    if len(highs) < 3 or len(lows) < 2:
+        return None
+    vol      = df['Volume']
+    F        = df['Close'].iloc[-1]
+    pivots   = pd.concat([highs, lows]).sort_index()
+    pv       = list(pivots.items())  # (index, value)
+    for i in range(len(pv) - 4):
+        try:
+            idxA, A = pv[i];   idxB, B = pv[i+1]; idxC, C = pv[i+2]
+            idxD, D = pv[i+3]; idxE, E = pv[i+4]
+            # Head > both shoulders
+            if not (C > max(A, E)):
+                continue
+            # Neckline troughs below shoulders
+            if not (B < min(A, E) and D < min(A, E)):
+                continue
+            # Shoulder symmetry: RS within 15% of LS
+            if abs(A - E) / max(A, E) > 0.15:
+                continue
+            # Neckline relatively flat (slope ≤10% difference)
+            neckline = (B + D) / 2
+            if abs(B - D) / max(B, D) > 0.10:
+                continue
+            # Price near or below right shoulder (pattern forming/broken)
+            if F > E * 1.05:
+                continue
+            # Volume: RS period volume < LS period volume
+            vol_ls = vol[idxA:idxB].mean() if idxA < idxB else 0
+            vol_rs = vol[idxD:idxE].mean() if idxD < idxE else 0
+            if vol_rs >= vol_ls and vol_ls > 0:
+                continue
+            price_target = round(neckline - (C - neckline), 2)
+            return {
+                'pattern':          'Head and Shoulders',
+                'neckline':          round(neckline, 2),
+                'head':              round(C, 2),
+                'left_shoulder':     round(A, 2),
+                'right_shoulder':    round(E, 2),
+                'price_target':      price_target,
+                'support_levels':    [round(neckline, 2)],
+                'resistance_levels': [round(C, 2)],
+                'ls_idx': idxA, 'head_idx': idxC, 'rs_idx': idxE,
+                'nl_left_idx': idxB, 'nl_right_idx': idxD,
+            }
+        except Exception:
+            continue
+    return None
+
+# ── Inverse Head and Shoulders ─────────────────────────────────────────────────
+def detect_inverse_hns(df, min_bars=63):
+    """Mirror of H&S: head lowest, RS within 15% of LS, volume RS < LS."""
+    if len(df) < min_bars:
+        return None
+    lows  = get_pivots(df['Low'],  bars=6)
+    highs = get_pivots(df['High'], bars=6)
+    if len(lows) < 3 or len(highs) < 2:
+        return None
+    vol    = df['Volume']
+    F      = df['Close'].iloc[-1]
+    pivots = pd.concat([highs, lows]).sort_index()
+    pv     = list(pivots.items())
+    for i in range(len(pv) - 4):
+        try:
+            idxA, A = pv[i];   idxB, B = pv[i+1]; idxC, C = pv[i+2]
+            idxD, D = pv[i+3]; idxE, E = pv[i+4]
+            if not (C < min(A, E)):
+                continue
+            if not (B > max(A, E) and D > max(A, E)):
+                continue
+            if abs(A - E) / max(A, E) > 0.15:
+                continue
+            neckline = (B + D) / 2
+            if abs(B - D) / max(B, D) > 0.10:
+                continue
+            if F < E * 0.95:
+                continue
+            vol_ls = vol[idxA:idxB].mean() if idxA < idxB else 0
+            vol_rs = vol[idxD:idxE].mean() if idxD < idxE else 0
+            if vol_rs >= vol_ls and vol_ls > 0:
+                continue
+            price_target = round(neckline + (neckline - C), 2)
+            return {
+                'pattern':          'Inverse Head and Shoulders',
+                'neckline':          round(neckline, 2),
+                'head':              round(C, 2),
+                'left_shoulder':     round(A, 2),
+                'right_shoulder':    round(E, 2),
+                'price_target':      price_target,
+                'support_levels':    [round(C, 2)],
+                'resistance_levels': [round(neckline, 2)],
+                'ls_idx': idxA, 'head_idx': idxC, 'rs_idx': idxE,
+                'nl_left_idx': idxB, 'nl_right_idx': idxD,
+            }
+        except Exception:
+            continue
+    return None
+
+# ── Double Top ─────────────────────────────────────────────────────────────────
+def detect_double_top(df, min_bars=63):
+    """Two peaks within 3%, volume lower on 2nd, price below middle trough."""
+    if len(df) < min_bars:
+        return None
+    highs = get_pivots(df['High'], bars=5)
+    lows  = get_pivots(df['Low'],  bars=5)
+    if len(highs) < 2 or len(lows) < 1:
+        return None
+    vol = df['Volume']
+    cur = df['Close'].iloc[-1]
+    hv  = list(highs.items())
+    lv  = lows.values
+    for i in range(len(hv) - 1):
+        idxA, A = hv[i]; idxC, C = hv[i+1]
+        # Within 3%
+        if abs(A - C) / max(A, C) > 0.03:
+            continue
+        # Volume lower on 2nd peak
+        vol_A = vol.get(idxA, 0) if hasattr(vol, 'get') else vol.loc[idxA] if idxA in vol.index else 0
+        vol_C = vol.get(idxC, 0) if hasattr(vol, 'get') else vol.loc[idxC] if idxC in vol.index else 0
+        if vol_C >= vol_A:
+            continue
+        # Middle trough between the two peaks
+        trough_candidates = [v for v in lv if v < min(A, C)]
+        if not trough_candidates:
+            continue
+        B = max(trough_candidates)
+        # Price near or below middle trough
+        if cur > B * 1.03:
+            continue
+        target = round(B - (max(A, C) - B), 2)
+        return {
+            'pattern':          'Double Top',
+            'top1':              round(A, 2),
+            'top2':              round(C, 2),
+            'middle_trough':     round(B, 2),
+            'price_target':      target,
+            'support_levels':    [round(B, 2)],
+            'resistance_levels': [round(max(A, C), 2)],
+            'top1_idx': idxA, 'top2_idx': idxC,
+        }
+    return None
+
+# ── Double Bottom ───────────────────────────────────────────────────────────────
+def detect_double_bottom(df, min_bars=63):
+    """Two troughs within 3%, middle peak above both, price near/above middle peak."""
+    if len(df) < min_bars:
+        return None
+    lows  = get_pivots(df['Low'],  bars=5)
+    highs = get_pivots(df['High'], bars=5)
+    if len(lows) < 2 or len(highs) < 1:
+        return None
+    cur = df['Close'].iloc[-1]
+    lv  = list(lows.items())
+    hv  = highs.values
+    for i in range(len(lv) - 1):
+        idxA, A = lv[i]; idxC, C = lv[i+1]
+        if abs(A - C) / max(A, C) > 0.03:
+            continue
+        peak_candidates = [v for v in hv if v > max(A, C)]
+        if not peak_candidates:
+            continue
+        B = min(peak_candidates)
+        if cur < B * 0.97:
+            continue
+        target = round(B + (B - min(A, C)), 2)
+        return {
+            'pattern':          'Double Bottom',
+            'bottom1':           round(A, 2),
+            'bottom2':           round(C, 2),
+            'middle_peak':       round(B, 2),
+            'price_target':      target,
+            'support_levels':    [round(min(A, C), 2)],
+            'resistance_levels': [round(B, 2)],
+            'bot1_idx': idxA, 'bot2_idx': idxC,
+        }
+    return None
+
+# ── Triple Top ─────────────────────────────────────────────────────────────────
+def detect_triple_top(df, min_bars=63):
+    """Three peaks within 3% of each other."""
+    if len(df) < min_bars:
+        return None
+    highs = get_pivots(df['High'], bars=5)
+    if len(highs) < 3:
+        return None
+    hv = list(highs.items())
+    for i in range(len(hv) - 2):
+        idxA, A = hv[i]; idxB, B = hv[i+1]; idxC, C = hv[i+2]
+        avg = (A + B + C) / 3
+        if max(abs(A-avg), abs(B-avg), abs(C-avg)) / avg > 0.03:
+            continue
+        return {
+            'pattern':          'Triple Top',
+            'resistance_levels': [round(avg, 2)],
+            'support_levels':   [],
+            't1_idx': idxA, 't2_idx': idxB, 't3_idx': idxC,
+        }
+    return None
+
+# ── Triple Bottom ───────────────────────────────────────────────────────────────
+def detect_triple_bottom(df, min_bars=63):
+    """Three troughs within 3% of each other."""
+    if len(df) < min_bars:
+        return None
+    lows = get_pivots(df['Low'], bars=5)
+    if len(lows) < 3:
+        return None
+    lv = list(lows.items())
+    for i in range(len(lv) - 2):
+        idxA, A = lv[i]; idxB, B = lv[i+1]; idxC, C = lv[i+2]
+        avg = (A + B + C) / 3
+        if max(abs(A-avg), abs(B-avg), abs(C-avg)) / avg > 0.03:
+            continue
+        return {
+            'pattern':        'Triple Bottom',
+            'support_levels': [round(avg, 2)],
+            'resistance_levels': [],
+            'b1_idx': idxA, 'b2_idx': idxB, 'b3_idx': idxC,
+        }
+    return None
+
+# ── Triangles ──────────────────────────────────────────────────────────────────
+def detect_triangle(df, min_bars=42):
+    """≥2 touches each trendline, volume contracting, breakout within 2/3 of apex."""
+    if len(df) < min_bars:
+        return None
+    highs = get_pivots(df['High'], bars=4)
+    lows  = get_pivots(df['Low'],  bars=4)
+    if len(highs) < 2 or len(lows) < 2:
+        return None
+    vol = df['Volume']
+    F   = df['Close'].iloc[-1]
+    hi  = list(highs.items())
+    lo  = list(lows.items())
+    # Volume contraction: last half avg < first half avg
+    mid = len(df) // 2
+    vol_early = vol.iloc[:mid].mean()
+    vol_late  = vol.iloc[mid:].mean()
+    vol_contracting = vol_late < vol_early
+    hv = highs.values; hi_idx = list(highs.index)
+    lv = lows.values;  lo_idx = list(lows.index)
+    for i in range(len(hv) - 1):
+        A, C = hv[i], hv[i+1]   # two resistance touches
+        for j in range(len(lv) - 1):
+            B, D = lv[j], lv[j+1]   # two support touches
+            # Symmetrical: converging highs + lows
+            if A > C and B < D:
+                # Apex approximation via linear projection
+                resist_slope = (C - A)
+                support_slope = (D - B)
+                within_two_thirds = (F > D) and (F < C)
+                if within_two_thirds and vol_contracting:
+                    return {
+                        'pattern': 'Symmetrical Triangle',
+                        'resist_hi': [round(A,2), round(C,2)],
+                        'support_lo': [round(B,2), round(D,2)],
+                        'support_levels':    [round(D, 2)],
+                        'resistance_levels': [round(C, 2)],
+                        'hi_touches': [hi_idx[i], hi_idx[i+1]],
+                        'lo_touches': [lo_idx[j], lo_idx[j+1]],
+                    }
+            # Ascending: flat resistance, rising support (≥2 touches each)
+            if abs(A - C) / max(A, C) <= 0.02 and B < D and D < F < A:
+                return {
+                    'pattern': 'Ascending Triangle',
+                    'resist_level': round((A+C)/2, 2),
+                    'support_levels':    [round(D, 2)],
+                    'resistance_levels': [round((A+C)/2, 2)],
+                    'hi_touches': [hi_idx[i], hi_idx[i+1]],
+                    'lo_touches': [lo_idx[j], lo_idx[j+1]],
+                }
+            # Descending: falling resistance, flat support (≥2 touches each)
+            if abs(B - D) / max(B, D) <= 0.02 and A > C and F < C:
+                return {
+                    'pattern': 'Descending Triangle',
+                    'support_level': round((B+D)/2, 2),
+                    'support_levels':    [round((B+D)/2, 2)],
+                    'resistance_levels': [round(C, 2)],
+                    'hi_touches': [hi_idx[i], hi_idx[i+1]],
+                    'lo_touches': [lo_idx[j], lo_idx[j+1]],
+                }
     return None
 
 def run_pattern_scan(df, min_cup_days=126):
@@ -250,7 +419,7 @@ def run_pattern_scan(df, min_cup_days=126):
             result = fn(df)
             if result:
                 return result
-        except:
+        except Exception:
             continue
     return {'pattern': 'None'}
 
@@ -258,64 +427,313 @@ def run_pattern_scan(df, min_cup_days=126):
 # ══════════════════════════════════════════════════════════════════════════════
 #  CHART
 # ══════════════════════════════════════════════════════════════════════════════
-def create_multi_timeframe_chart(symbol, daily, weekly, monthly, pattern_result):
+def _draw_candles(ax, df_tf):
+    """Draw OHLC candlestick bars using Rectangle patches."""
+    opens  = df_tf['Open'].values
+    highs  = df_tf['High'].values
+    lows   = df_tf['Low'].values
+    closes = df_tf['Close'].values
+    n = len(df_tf)
+    for i in range(n):
+        bull = closes[i] >= opens[i]
+        col  = '#26a641' if bull else '#f85149'
+        body_lo = min(opens[i], closes[i])
+        body_hi = max(opens[i], closes[i])
+        height  = max(body_hi - body_lo, (highs[i] - lows[i]) * 0.01)
+        ax.add_patch(plt.Rectangle((i - 0.35, body_lo), 0.7, height,
+                                    color=col, zorder=3))
+        ax.plot([i, i], [lows[i], body_lo],  color=col, lw=0.7, zorder=2)
+        ax.plot([i, i], [body_hi, highs[i]], color=col, lw=0.7, zorder=2)
+    ax.set_xlim(-1, n)
+    ax.set_ylim(lows.min() * 0.97, highs.max() * 1.03)
+
+
+def _draw_volume(ax, df_tf):
+    """Volume bars with 20-bar MA overlay."""
+    vol    = df_tf['Volume'].values
+    closes = df_tf['Close'].values
+    opens  = df_tf['Open'].values
+    n      = len(df_tf)
+    for i in range(n):
+        col = '#26a641' if closes[i] >= opens[i] else '#f85149'
+        ax.bar(i, vol[i], color=col, alpha=0.6, width=0.85, zorder=2)
+    vol_ma = pd.Series(vol).rolling(20).mean().values
+    ax.plot(np.arange(n), vol_ma, color='#ffd700', lw=1.0, label='Vol MA20')
+    ax.set_xlim(-1, n)
+    ax.set_facecolor('#0d1117')
+    ax.tick_params(colors='#8b949e', labelsize=6)
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K'))
+    ax.grid(color='#21262d', ls='--', lw=.3)
+    for sp in ax.spines.values(): sp.set_color('#30363d')
+
+
+def _draw_rsi(ax, df_tf):
+    """RSI(14) sub-panel with overbought/oversold zones."""
     try:
-        fig, axes = plt.subplots(3, 1, figsize=(16, 18))
+        import ta as ta_lib
+        rsi = ta_lib.momentum.RSIIndicator(df_tf['Close'], window=14).rsi().values
+    except Exception:
+        close = df_tf['Close'].values
+        delta = np.diff(close, prepend=close[0])
+        gain  = np.where(delta > 0, delta, 0.0)
+        loss  = np.where(delta < 0, -delta, 0.0)
+        avg_g = pd.Series(gain).ewm(com=13, adjust=False).mean().values
+        avg_l = pd.Series(loss).ewm(com=13, adjust=False).mean().values
+        rs    = np.where(avg_l == 0, 100, avg_g / avg_l)
+        rsi   = 100 - (100 / (1 + rs))
+    n = len(rsi)
+    ax.plot(np.arange(n), rsi, color='#a78bfa', lw=1.0, zorder=3)
+    ax.axhline(70, color='#f85149', lw=0.7, ls='--', alpha=0.7)
+    ax.axhline(30, color='#26a641', lw=0.7, ls='--', alpha=0.7)
+    ax.fill_between(np.arange(n), rsi, 70, where=(rsi >= 70), alpha=0.15, color='#f85149')
+    ax.fill_between(np.arange(n), rsi, 30, where=(rsi <= 30), alpha=0.15, color='#26a641')
+    ax.set_ylim(0, 100)
+    ax.set_xlim(-1, n)
+    ax.set_yticks([30, 50, 70])
+    ax.set_facecolor('#0d1117')
+    ax.tick_params(colors='#8b949e', labelsize=6)
+    ax.set_ylabel('RSI', color='#8b949e', fontsize=6)
+    ax.grid(color='#21262d', ls='--', lw=.3)
+    for sp in ax.spines.values(): sp.set_color('#30363d')
+
+
+def _draw_mas(ax, df_tf):
+    """MA20 (gold), MA50 (orange), MA150 (purple), MA200 (red)."""
+    close = df_tf['Close'].values
+    n     = len(close)
+    xs    = np.arange(n)
+    mas   = [
+        (20,  '#ffd700', 'MA20',  0.85),
+        (50,  '#ff9500', 'MA50',  0.85),
+        (150, '#c084fc', 'MA150', 0.80),
+        (200, '#ff4757', 'MA200', 0.90),
+    ]
+    for period, color, label, alpha in mas:
+        vals = pd.Series(close).rolling(period).mean().values
+        valid = ~np.isnan(vals)
+        if valid.any():
+            ax.plot(xs[valid], vals[valid], color=color, lw=0.9,
+                    label=label, alpha=alpha, zorder=4)
+
+
+def _draw_pattern_annotations(ax, df_tf, pr, n):
+    """Draw TradingView-style pattern markings on price panel."""
+    pat = pr.get('pattern', 'None')
+    close = df_tf['Close'].values
+    highs = df_tf['High'].values
+    lows  = df_tf['Low'].values
+
+    def _x_for_idx(date_idx):
+        """Convert DatetimeIndex label to integer position."""
+        try:
+            return df_tf.index.get_loc(date_idx)
+        except Exception:
+            return None
+
+    # ── Cup and Handle ────────────────────────────────────
+    if pat == 'Cup and Handle':
+        cs = pr.get('cup_start_idx', 0)
+        cb = pr.get('cup_bottom_idx', n // 2)
+        ce = min(pr.get('cup_end_idx', n - 1), n - 1)
+        cs = max(0, min(cs, n - 1))
+        cb = max(0, min(cb, n - 1))
+        if ce > cs:
+            xs_cup = np.arange(cs, ce + 1)
+            ax.fill_between(xs_cup, close[cs:ce+1],
+                            max(close[cs:ce+1]), alpha=0.07, color='#58a6ff')
+        bl = pr.get('breakout_level')
+        if bl:
+            ax.axhline(bl, color='#26a641', lw=1.5, ls='--', alpha=0.9)
+            ax.text(n * 0.98, bl, '  BUY ZONE', color='#26a641',
+                    fontsize=7, va='bottom', ha='right', fontweight='bold')
+        for lbl, val, color in [
+            ('Cup High', pr.get('cup_high'), '#ffd700'),
+            ('Cup Low',  pr.get('cup_low'),  '#58a6ff'),
+            ('Handle',   pr.get('handle_low'), '#ff9500'),
+        ]:
+            if val:
+                ax.axhline(val, color=color, lw=0.8, ls=':', alpha=0.6)
+                ax.text(n * 0.01, val, f' {lbl} ${val}', color=color, fontsize=6, va='bottom')
+
+    # ── Head and Shoulders ────────────────────────────────
+    elif pat in ('Head and Shoulders', 'Inverse Head and Shoulders'):
+        nk = pr.get('neckline')
+        if nk:
+            ax.axhline(nk, color='#ff9500', lw=1.8, ls='-', alpha=0.9)
+            ax.text(n * 0.5, nk, f' Neckline ${nk:.2f}',
+                    color='#ff9500', fontsize=7, fontweight='bold', va='bottom')
+        pt = pr.get('price_target')
+        if pt:
+            ax.axhline(pt, color='#f85149', lw=1.0, ls='-.', alpha=0.8)
+            ax.text(n * 0.98, pt, f'  Target ${pt}', color='#f85149',
+                    fontsize=6, va='top', ha='right')
+        for key, label, color in [
+            ('ls_idx', 'LS', '#a78bfa'),
+            ('head_idx', 'H', '#f85149'),
+            ('rs_idx', 'RS', '#a78bfa'),
+        ]:
+            xi = _x_for_idx(pr.get(key))
+            if xi is not None and 0 <= xi < n:
+                y = highs[xi] if 'Head and Shoulders' == pat else lows[xi]
+                ax.plot(xi, y, 'o', color=color, ms=6, zorder=5)
+                ax.text(xi, y, f'  {label}', color=color, fontsize=6,
+                        va='top' if 'Head and Shoulders' == pat else 'bottom')
+                if nk:
+                    ax.plot([xi, xi], [min(y, nk), max(y, nk)],
+                            color=color, lw=0.6, ls='--', alpha=0.5)
+
+    # ── Double / Triple Bottom ────────────────────────────
+    elif pat in ('Double Bottom', 'Triple Bottom'):
+        res = pr.get('resistance_levels', [])
+        if res:
+            ax.axhline(res[0], color='#26a641', lw=1.4, ls='--', alpha=0.9)
+            ax.axhline(res[0], color='#26a641', lw=0, alpha=0.0)
+            ax.fill_between([0, n], res[0], res[0] * 1.05,
+                            color='#26a641', alpha=0.08)
+            ax.text(n * 0.98, res[0], '  Breakout zone', color='#26a641',
+                    fontsize=6, va='bottom', ha='right')
+        pt = pr.get('price_target')
+        if pt:
+            ax.axhline(pt, color='#58a6ff', lw=1.0, ls='-.', alpha=0.8)
+            ax.text(n * 0.01, pt, f' Target ${pt}', color='#58a6ff', fontsize=6)
+        for key, lbl in [('bot1_idx','B1'),('bot2_idx','B2'),('b1_idx','B1'),('b2_idx','B2'),('b3_idx','B3')]:
+            xi = _x_for_idx(pr.get(key))
+            if xi is not None and 0 <= xi < n:
+                ax.plot(xi, lows[xi], 'v', color='#26a641', ms=7, zorder=5)
+                ax.text(xi, lows[xi], f'  {lbl}', color='#26a641', fontsize=6, va='top')
+
+    # ── Double / Triple Top ───────────────────────────────
+    elif pat in ('Double Top', 'Triple Top'):
+        sup = pr.get('support_levels', [])
+        if sup:
+            ax.axhline(sup[0], color='#f85149', lw=1.4, ls='--', alpha=0.9)
+        pt = pr.get('price_target')
+        if pt:
+            ax.axhline(pt, color='#f85149', lw=1.0, ls='-.', alpha=0.8)
+            ax.text(n * 0.01, pt, f' Target ${pt}', color='#f85149', fontsize=6)
+        for key, lbl in [('top1_idx','T1'),('top2_idx','T2'),('t1_idx','T1'),('t2_idx','T2'),('t3_idx','T3')]:
+            xi = _x_for_idx(pr.get(key))
+            if xi is not None and 0 <= xi < n:
+                ax.plot(xi, highs[xi], '^', color='#f85149', ms=7, zorder=5)
+                ax.text(xi, highs[xi], f'  {lbl}', color='#f85149', fontsize=6, va='bottom')
+
+    # ── Triangles ─────────────────────────────────────────
+    elif 'Triangle' in pat:
+        hi_t = pr.get('hi_touches', [])
+        lo_t = pr.get('lo_touches', [])
+        for dt in hi_t:
+            xi = _x_for_idx(dt)
+            if xi is not None and 0 <= xi < n:
+                ax.plot(xi, highs[xi], 'o', color='#ff9500', ms=5, zorder=5)
+        for dt in lo_t:
+            xi = _x_for_idx(dt)
+            if xi is not None and 0 <= xi < n:
+                ax.plot(xi, lows[xi], 'o', color='#ff9500', ms=5, zorder=5)
+        res = pr.get('resistance_levels', [])
+        sup = pr.get('support_levels', [])
+        if res:
+            ax.axhline(res[0], color='#ff9500', lw=1.0, ls='--', alpha=0.7)
+        if sup:
+            ax.axhline(sup[0], color='#ff9500', lw=1.0, ls='--', alpha=0.7)
+        if res and sup:
+            ax.fill_between([0, n], sup[0], res[0], color='#ff9500', alpha=0.05)
+
+    # ── Generic support / resistance ──────────────────────
+    for lvl in pr.get('support_levels', []):
+        ax.axhline(lvl, color='#2ed573', lw=1.0, ls='--', alpha=0.7)
+        ax.text(n * 0.01, lvl, f' S ${lvl}', color='#2ed573', fontsize=6, va='bottom')
+    for lvl in pr.get('resistance_levels', []):
+        ax.axhline(lvl, color='#ff4757', lw=1.0, ls='--', alpha=0.7)
+        ax.text(n * 0.01, lvl, f' R ${lvl}', color='#ff4757', fontsize=6, va='top')
+
+
+def create_multi_timeframe_chart(symbol, daily, weekly, monthly, pattern_result, claude_result=None):
+    """Professional 9-panel chart: price (candlestick) + volume + RSI for each timeframe."""
+    try:
+        from matplotlib.gridspec import GridSpec
+        ROWS = 9
+        heights = [3.5, 1, 1.2] * 3
+        fig = plt.figure(figsize=(18, 24))
         fig.patch.set_facecolor('#0d1117')
-        fig.suptitle(f'{symbol} — Multi-Timeframe Analysis  |  {datetime.now().strftime("%Y-%m-%d")}',
-                     color='white', fontsize=14, fontweight='bold', y=0.98)
+        gs  = GridSpec(ROWS, 1, figure=fig, hspace=0.08,
+                       height_ratios=heights)
+        fig.suptitle(
+            f'{symbol} — Multi-Timeframe Analysis  |  {datetime.now().strftime("%Y-%m-%d")}',
+            color='white', fontsize=15, fontweight='bold', y=0.995
+        )
         timeframes = [
-            (daily.tail(180),  'Daily (6 months)',  axes[0]),
-            (weekly.tail(104), 'Weekly (2 years)',  axes[1]),
-            (monthly.tail(60), 'Monthly (5 years)', axes[2]),
+            (daily.tail(180),  'Daily (6 months)',   0),
+            (weekly.tail(104), 'Weekly (2 years)',    3),
+            (monthly.tail(60), 'Monthly (5 years)',   6),
         ]
-        for df_tf, label, ax in timeframes:
-            ax.set_facecolor('#0d1117')
-            n  = len(df_tf)
-            xs = np.arange(n)
-            close = df_tf['Close'].values
-            ma20  = pd.Series(close).rolling(20).mean().values
-            ma50  = pd.Series(close).rolling(50).mean().values
-            ma200 = pd.Series(close).rolling(200).mean().values
-            ax.plot(xs, close, color='#58a6ff', lw=1.6, label='Price', zorder=3)
-            ax.plot(xs, ma20,  color='#ffd700', lw=0.9, label='MA20',  alpha=.85)
-            ax.plot(xs, ma50,  color='#ff9500', lw=0.9, label='MA50',  alpha=.85)
-            valid_ma200 = ma200[~np.isnan(ma200)]
-            if len(valid_ma200):
-                ax.plot(xs[-len(valid_ma200):], valid_ma200, color='#ff4757', lw=1.3, label='MA200', alpha=.9)
-            for lvl in pattern_result.get('support_levels', []):
-                ax.axhline(lvl, color='#2ed573', lw=1.2, ls='--', alpha=.8)
-                ax.text(n*0.01, lvl, f' S ${lvl}', color='#2ed573', fontsize=7, va='bottom')
-            for lvl in pattern_result.get('resistance_levels', []):
-                ax.axhline(lvl, color='#ff4757', lw=1.2, ls='--', alpha=.8)
-                ax.text(n*0.01, lvl, f' R ${lvl}', color='#ff4757', fontsize=7, va='top')
-            nk = pattern_result.get('neckline')
-            if nk:
-                ax.axhline(nk, color='#ff9500', lw=1.8, ls='-', alpha=.9)
-                ax.text(n*0.5, nk, f' Neckline ${nk:.2f}', color='#ff9500', fontsize=8, fontweight='bold')
-            if 'cup_start_idx' in pattern_result and label.startswith('Daily'):
-                cs = pattern_result['cup_start_idx']
-                ce = min(pattern_result['cup_end_idx'], n-1)
-                if ce > cs:
-                    ax.fill_between(xs[cs:ce], close[cs:ce], max(close[cs:ce]), alpha=.08, color='#58a6ff')
-            pat = pattern_result.get('pattern', 'None')
+        pr = pattern_result or {'pattern': 'None'}
+        pat = pr.get('pattern', 'None')
+
+        for df_tf, label, row_start in timeframes:
+            df_tf = df_tf.copy()
+            n = len(df_tf)
+
+            # ── Price panel ────────────────────────────────
+            ax_p = fig.add_subplot(gs[row_start])
+            ax_p.set_facecolor('#0d1117')
+            _draw_candles(ax_p, df_tf)
+            _draw_mas(ax_p, df_tf)
+            _draw_pattern_annotations(ax_p, df_tf, pr, n)
+
+            # Trade levels from Claude result
+            if claude_result:
+                ent = claude_result.get('entry_zone')
+                stp = claude_result.get('stop_loss')
+                t1  = claude_result.get('target_1')
+                t2  = claude_result.get('target_2')
+                def _try_float(v):
+                    try: return float(str(v).replace('$','').split()[0])
+                    except: return None
+                for val, color, ls, lbl in [
+                    (_try_float(ent), '#26a641', '-',  'Entry'),
+                    (_try_float(stp), '#f85149', '-',  'Stop'),
+                    (_try_float(t1),  '#58a6ff', '--', 'T1'),
+                    (_try_float(t2),  '#58a6ff', ':',  'T2'),
+                ]:
+                    if val:
+                        ax_p.axhline(val, color=color, lw=1.1, ls=ls, alpha=0.85)
+                        ax_p.text(n * 0.99, val, f' {lbl} ${val}',
+                                  color=color, fontsize=6, va='bottom', ha='right')
+
+            # Pattern badge top-left
             if pat and pat != 'None':
-                ax.text(0.5, 0.97, f'Pattern: {pat}', transform=ax.transAxes,
-                        color='white', fontsize=9, fontweight='bold', ha='center', va='top',
-                        bbox=dict(boxstyle='round,pad=0.25', facecolor='#21262d', alpha=.85))
-            ax.set_title(label, color='#8b949e', fontsize=10, pad=4)
-            ax.legend(loc='upper left', facecolor='#161b22', labelcolor='white', fontsize=7, framealpha=.8)
-            ax.tick_params(colors='#8b949e', labelsize=7)
-            ax.grid(color='#21262d', ls='--', lw=.4)
-            for spine in ax.spines.values():
-                spine.set_color('#30363d')
-        plt.tight_layout(rect=[0, 0, 1, 0.97])
-        path = f'/tmp/{symbol}_chart.png' if os.name != 'nt' else f'C:\\stock_scanner\\{symbol}_chart.png'
-        plt.savefig(path, dpi=130, bbox_inches='tight', facecolor='#0d1117')
+                tf_detected = ''
+                ax_p.text(0.01, 0.98, f'▶ {pat}{tf_detected}',
+                          transform=ax_p.transAxes, color='white', fontsize=8,
+                          fontweight='bold', va='top',
+                          bbox=dict(boxstyle='round,pad=0.3', facecolor='#21262d', alpha=0.9))
+
+            ax_p.set_title(label, color='#8b949e', fontsize=10, pad=4, loc='left')
+            ax_p.legend(loc='upper right', facecolor='#161b22',
+                        labelcolor='white', fontsize=6, framealpha=0.8, ncol=4)
+            ax_p.tick_params(colors='#8b949e', labelsize=7)
+            ax_p.grid(color='#21262d', ls='--', lw=0.4)
+            for sp in ax_p.spines.values(): sp.set_color('#30363d')
+            ax_p.set_xticklabels([])
+
+            # ── Volume panel ───────────────────────────────
+            ax_v = fig.add_subplot(gs[row_start + 1])
+            _draw_volume(ax_v, df_tf)
+            ax_v.set_xticklabels([])
+
+            # ── RSI panel ──────────────────────────────────
+            ax_r = fig.add_subplot(gs[row_start + 2])
+            _draw_rsi(ax_r, df_tf)
+
+        plt.subplots_adjust(left=0.05, right=0.97, top=0.985, bottom=0.02)
+        path = (f'/tmp/{symbol}_chart.png' if os.name != 'nt'
+                else f'C:\\stock_scanner\\{symbol}_chart.png')
+        plt.savefig(path, dpi=120, bbox_inches='tight', facecolor='#0d1117')
         plt.close()
         return path
     except Exception as e:
-        print(f"  Chart error {symbol}: {e}")
+        print(f'  Chart error {symbol}: {e}')
+        import traceback; traceback.print_exc()
         return None
 
 
