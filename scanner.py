@@ -665,12 +665,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'הרץ', 'תהרץ', 'בצע', 'תבצע', 'תסרוק', 'סרוק'
     }
 
-    # זיהוי טיקר בהודעה
+    # זיהוי טיקר בהודעה — רק אותיות לטיניות ASCII (לא עברית)
     words = text.upper().split()
     ticker = None
     for word in words:
-        clean = word.strip('.,!?')
-        if 1 < len(clean) <= 5 and clean.isalpha() and clean not in skip_words:
+        clean = word.strip('.,!?()[]')
+        if 1 < len(clean) <= 5 and clean.isascii() and clean.isalpha() and clean not in skip_words:
             ticker = clean
             break
 
