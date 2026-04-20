@@ -77,3 +77,10 @@ python-telegram-bot (v20+ async), yfinance, finvizfinance, anthropic, matplotlib
 - yfinance: `.get()` with fallback, never direct key access on `info`
 - `beta` and `pb_ratio` → `or 0` pattern (can be None)
 - `isascii()` on ticker detection — do not remove
+
+## Agent Behavior (Antigravity)
+- Make file edits directly, no confirmation needed
+- Git: `add -A` → `commit -m "<description>"` → `push origin main` after every code change
+- Python test scripts: run immediately, SafeToAutoRun=true
+- Git commands: always SafeToAutoRun=true
+- Caveman mode active by default (less tokens)
