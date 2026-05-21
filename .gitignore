@@ -1,3 +1,5 @@
 .env
 debug.py
 *_chart.png
+bot.log
+__pycache__/
