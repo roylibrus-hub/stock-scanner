@@ -941,6 +941,148 @@ def fmt_report(stock, res):
 # ══════════════════════════════════════════════════════════════════════════════
 #  SINGLE STOCK ANALYSIS
 # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+#  HEBREW FUNDAMENTALS CHECK
+# ══════════════════════════════════════════════════════════════════════════════
+async def check_hebrew_fundamentals(symbol, update):
+    sym = symbol.upper().strip()
+    try:
+        await update.message.reply_text(f"⏳ מושך פונדמנטלס עבור *{sym}*...", parse_mode='Markdown')
+        ticker = yf.Ticker(sym)
+        info = ticker.info
+
+        # Check if ticker is valid
+        px = info.get('currentPrice', info.get('regularMarketPrice', 0))
+        if not px:
+            await update.message.reply_text(f"❌ טיקר לא נמצא — נסה שוב")
+            return
+
+        # Fetch fundamental data
+        mc = info.get('marketCap', 0)
+        av = info.get('averageVolume', 0)
+        beta = info.get('beta', 0) or 0
+        pb = info.get('priceToBook', 0) or 0
+        pe = info.get('trailingPE', None)
+        eps_ttm = info.get('trailingEps', None)
+        current_ratio = info.get('currentRatio', None)
+
+        # Get quarterly EPS for trend
+        try:
+            quarterly = ticker.quarterly_financials
+            if quarterly is not None and not quarterly.empty:
+                earnings_key = 'Net Income' if 'Net Income' in quarterly.index else None
+                if earnings_key and len(quarterly.columns) >= 4:
+                    recent_earnings = quarterly.loc[earnings_key].head(4).values
+                    eps_trend = "מעלה" if recent_earnings[-1] > recent_earnings[0] else "מטה"
+                else:
+                    eps_trend = "לא ידוע"
+            else:
+                eps_trend = "לא ידוע"
+        except Exception:
+            eps_trend = "לא ידוע"
+
+        # Format values
+        mc_m = mc / 1e6 if mc else 0
+        av_k = av * px / 1e3 if av and px else 0
+
+        # Check pass/fail criteria
+        results = {}
+        hard_stops = []
+        soft_flags = []
+
+        # 1. Market Cap (hard stop < $300M)
+        results['market_cap'] = ('✅' if mc >= 300e6 else '❌', f"${mc_m:.0f}M")
+        if mc < 300e6:
+            hard_stops.append("שווי שוק")
+
+        # 2. Average Daily Volume (hard stop < 300K)
+        av_display = f"${av_k:.0f}K/יום" if av_k > 0 else "לא זמין"
+        results['avg_volume'] = ('✅' if av_k >= 300 else '❌' if av_k > 0 else '⚠️', av_display)
+        if av_k > 0 and av_k < 300:
+            hard_stops.append("מחזור יומי")
+
+        # 3. Beta (display only)
+        results['beta'] = ('ℹ️', f"{beta:.2f}" if beta > 0 else "לא זמין")
+
+        # 4. P/E Ratio (soft flag if negative or > 100)
+        if pe is not None and pe > 0:
+            pe_display = f"{pe:.1f}"
+            results['pe'] = ('⚠️' if (pe < 0 or pe > 100) else '✅', pe_display)
+            if pe < 0 or pe > 100:
+                soft_flags.append("P/E גבוה מדי או שלילי")
+        else:
+            results['pe'] = ('⚠️', 'לא זמין')
+
+        # 5. P/B Ratio (soft flag if < 1)
+        if pb is not None and pb > 0:
+            pb_display = f"{pb:.2f}"
+            results['pb'] = ('⚠️' if pb < 1 else '✅', pb_display)
+            if pb < 1:
+                soft_flags.append("P/B נמוך מדי")
+        else:
+            results['pb'] = ('⚠️', 'לא זמין')
+
+        # 6. EPS (soft flag if declining)
+        if eps_ttm is not None:
+            eps_display = f"{eps_ttm:.2f}" if isinstance(eps_ttm, (int, float)) else str(eps_ttm)
+            eps_with_trend = f"{eps_display} ({eps_trend})"
+            results['eps'] = ('⚠️' if eps_trend == "מטה" else '✅' if eps_trend == "מעלה" else '⚠️', eps_with_trend)
+            if eps_trend == "מטה":
+                soft_flags.append("EPS בירידה")
+        else:
+            results['eps'] = ('⚠️', 'לא זמין')
+
+        # 7. Current Ratio (soft flag if < 2)
+        if current_ratio is not None and current_ratio > 0:
+            cr_display = f"{current_ratio:.2f}"
+            results['current_ratio'] = ('⚠️' if current_ratio < 2 else '✅', cr_display)
+            if current_ratio < 2:
+                soft_flags.append("יחס שוטף נמוך")
+        else:
+            results['current_ratio'] = ('⚠️', 'לא זמין')
+
+        # Build report
+        report = f"🔍 בדיקת פונדמנטלס — ${sym}\n\n"
+        report += f"{results['market_cap'][0]} שווי שוק: {results['market_cap'][1]}\n"
+        report += "(דרישה: מעל $300M — NYSE או NASDAQ בלבד)\n\n"
+
+        report += f"{results['avg_volume'][0]} מחזור יומי ממוצע: {results['avg_volume'][1]}\n"
+        report += "(דרישה: מעל 300K לסווינג, מעל 1M לדייטרייד)\n\n"
+
+        report += f"{results['beta'][0]} בטא: {results['beta'][1]}\n"
+        report += "(תנודתיות ביחס לשוק)\n\n"
+
+        report += f"{results['pe'][0]} מכפיל רווח P/E: {results['pe'][1]}\n"
+        report += "(דרישה: נמוך ככל האפשר)\n\n"
+
+        report += f"{results['pb'][0]} מכפיל הון P/B: {results['pb'][1]}\n"
+        report += "(דרישה: מעל 1)\n\n"
+
+        report += f"{results['eps'][0]} EPS: {results['eps'][1]}\n"
+        report += "(דרישה: מגמת עלייה)\n\n"
+
+        report += f"{results['current_ratio'][0]} יחס שוטף: {results['current_ratio'][1]}\n"
+        report += "(דרישה: מעל 2)\n\n"
+
+        report += "---\n"
+
+        # Calculate result
+        passed = sum(1 for r in results.values() if r[0] == '✅' or r[0] == 'ℹ️')
+        total = len(results)
+        report += f"📊 תוצאה: {passed}/{total}\n\n"
+
+        if hard_stops:
+            report += f"🔴 נכשל בפילטר קריטי ({', '.join(hard_stops)}) — אל תסחר במניה זו"
+        elif not soft_flags:
+            report += f"🟢 כל הפרמטרים תקינים — המשך לגרף"
+        else:
+            report += f"⚠️ {', '.join(soft_flags)} — שקול לפני שתסתכל על הגרף"
+
+        await update.message.reply_text(report)
+    except Exception as e:
+        await update.message.reply_text(f"❌ שגיאה בבדיקת {sym}: {str(e)}")
+
+
 async def analyze_single_stock(symbol, update):
     sym = symbol.upper().strip()
     try:
@@ -1111,6 +1253,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• `תנתח TSLA`\n"
             "• `תריץ בדיקה על NVDA`\n"
             "• `/analyze MSFT`\n\n"
+            "✅ *בדיקת פונדמנטלס:*\n"
+            "• `/check AAPL`\n"
+            "• `/validate NVDA`\n"
+            "• `/בדוק TSLA`\n\n"
             "🔍 *סריקה שבועית מלאה:*\n"
             "• `סריקה שבועית`\n"
             "• `/scan`\n\n"
@@ -1134,11 +1280,30 @@ async def cmd_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🔍 מנתח את *{args[0].upper()}*...", parse_mode='Markdown')
     await analyze_single_stock(args[0], update)
 
+async def cmd_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_chat.id) != TELEGRAM_CHAT_ID:
+        return
+    args = context.args
+    if not args:
+        await update.message.reply_text("📊 שלח טיקר: `/check AAPL`", parse_mode='Markdown')
+        return
+    await check_hebrew_fundamentals(args[0], update)
+
+async def cmd_validate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_chat.id) != TELEGRAM_CHAT_ID:
+        return
+    args = context.args
+    if not args:
+        await update.message.reply_text("📊 שלח טיקר: `/validate AAPL`", parse_mode='Markdown')
+        return
+    await check_hebrew_fundamentals(args[0], update)
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 *Stock Scanner Bot*\n\n"
         "📊 לניתוח מנייה: `SOFI` או `תנתח TSLA`\n"
         "🔍 לסריקה שבועית: `סריקה שבועית` או `/scan`\n"
+        "✅ לבדיקת פונדמנטלס: `/check AAPL` או `/validate AAPL` או `/בדוק AAPL`\n"
         "⏰ סריקה אוטומטית: כל שבת 21:00",
         parse_mode='Markdown'
     )
@@ -1157,6 +1322,9 @@ def main():
     app.add_handler(CommandHandler("start",   cmd_start))
     app.add_handler(CommandHandler("scan",    cmd_scan))
     app.add_handler(CommandHandler("analyze", cmd_analyze))
+    app.add_handler(CommandHandler("check",   cmd_check))
+    app.add_handler(CommandHandler("validate", cmd_validate))
+    app.add_handler(CommandHandler("בדוק",   cmd_check))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.job_queue.run_daily(
         scheduled_scan,
