@@ -1255,8 +1255,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• `/analyze MSFT`\n\n"
             "✅ *בדיקת פונדמנטלס:*\n"
             "• `/check AAPL`\n"
-            "• `/validate NVDA`\n"
-            "• `/בדוק TSLA`\n\n"
+            "• `/validate NVDA`\n\n"
             "🔍 *סריקה שבועית מלאה:*\n"
             "• `סריקה שבועית`\n"
             "• `/scan`\n\n"
@@ -1281,12 +1280,16 @@ async def cmd_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await analyze_single_stock(args[0], update)
 
 async def cmd_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"DEBUG: cmd_check called, chat_id={update.effective_chat.id}, TELEGRAM_CHAT_ID={TELEGRAM_CHAT_ID}")
     if str(update.effective_chat.id) != TELEGRAM_CHAT_ID:
+        print(f"DEBUG: Chat ID mismatch, returning silently")
         return
     args = context.args
     if not args:
+        print(f"DEBUG: No args provided")
         await update.message.reply_text("📊 שלח טיקר: `/check AAPL`", parse_mode='Markdown')
         return
+    print(f"DEBUG: Calling check_hebrew_fundamentals with {args[0]}")
     await check_hebrew_fundamentals(args[0], update)
 
 async def cmd_validate(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1303,7 +1306,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "👋 *Stock Scanner Bot*\n\n"
         "📊 לניתוח מנייה: `SOFI` או `תנתח TSLA`\n"
         "🔍 לסריקה שבועית: `סריקה שבועית` או `/scan`\n"
-        "✅ לבדיקת פונדמנטלס: `/check AAPL` או `/validate AAPL` או `/בדוק AAPL`\n"
+        "✅ לבדיקת פונדמנטלס: `/check AAPL` או `/validate AAPL`\n"
         "⏰ סריקה אוטומטית: כל שבת 21:00",
         parse_mode='Markdown'
     )
@@ -1324,7 +1327,6 @@ def main():
     app.add_handler(CommandHandler("analyze", cmd_analyze))
     app.add_handler(CommandHandler("check",   cmd_check))
     app.add_handler(CommandHandler("validate", cmd_validate))
-    app.add_handler(CommandHandler("בדוק",   cmd_check))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.job_queue.run_daily(
         scheduled_scan,
